@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CovidWatch - Predictive Modeling</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #e8f4f8 0%, #f0f8fc 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #1b7a7e 0%, #2a9d8f 100%);
+        color: white;
+        padding: 40px 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 42px;
+        margin-bottom: 10px;
+      }
+
+      .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #2a9d8f;
+      }
+
+      .card h2 {
+        color: #1b7a7e;
+        font-size: 24px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e0f2f1;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #2a9d8f;
+        box-shadow: 0 0 0 3px rgba(42, 157, 143, 0.1);
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 14px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 15px;
+        background: linear-gradient(135deg, #2a9d8f 0%, #1b7a7e 100%);
+        color: white;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(42, 157, 143, 0.3);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .results {
+        display: none;
+        background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .results.show {
+        display: block;
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .result-item {
+        background: white;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        border-left: 4px solid #2a9d8f;
+      }
+
+      .result-label {
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 5px;
+      }
+
+      .result-value {
+        color: #1b7a7e;
+        font-size: 28px;
+        font-weight: bold;
+      }
+
+      .result-secondary {
+        color: #666;
+        font-size: 14px;
+        margin-top: 8px;
+      }
+
+      .risk-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 8px;
+      }
+
+      .risk-high {
+        background: #ffebee;
+        color: #c62828;
+      }
+
+      .risk-medium {
+        background: #fff3e0;
+        color: #e65100;
+      }
+
+      .risk-low {
+        background: #e8f5e9;
+        color: #2e7d32;
+      }
+
+      .graph-container {
+        grid-column: 1 / -1;
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #2a9d8f;
+      }
+
+      .graph-container h2 {
+        color: #1b7a7e;
+        font-size: 20px;
+        margin-bottom: 20px;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .loading.show {
+        display: block;
+      }
+
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #2a9d8f;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-top: 15px;
+        display: none;
+        border-left: 4px solid #c62828;
+      }
+
+      .error-message.show {
+        display: block;
+      }
+
+      .prediction-text {
+        font-size: 18px;
+        color: #333;
+        margin-top: 20px;
+        padding: 15px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        border-left: 4px solid #ff9800;
+      }
+
+      @media (max-width: 1024px) {
+        .main-content {
+          grid-template-columns: 1fr;
+        }
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>CovidWatch</h1>
+        <p>Predictive Modeling and Public Health Awareness</p>
+      </div>
+
+      <div class="main-content">
+        <div class="card">
+          <h2>📊 COVID Risk Forecast</h2>
+
+          <form id="forecastForm">
+            <div class="form-group">
+              <label for="state">State/Region</label>
+              <select id="state" required>
+                <option value="">Select a state...</option>
+                <option value="andaman_and_nicobar_islands">
+                  Andaman and Nicobar Islands
+                </option>
+                <option value="andhra_pradesh">Andhra Pradesh</option>
+                <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                <option value="assam">Assam</option>
+                <option value="bihar">Bihar</option>
+                <option value="chandigarh">Chandigarh</option>
+                <option value="chhattisgarh">Chhattisgarh</option>
+                <option value="dadra_and_nagar_haveli_and_daman_and_diu">
+                  Dadra and Nagar Haveli and Daman and Diu
+                </option>
+                <option value="delhi">Delhi</option>
+                <option value="goa">Goa</option>
+                <option value="gujarat">Gujarat</option>
+                <option value="haryana">Haryana</option>
+                <option value="himachal_pradesh">Himachal Pradesh</option>
+                <option value="jammu_and_kashmir">Jammu and Kashmir</option>
+                <option value="jharkhand">Jharkhand</option>
+                <option value="karnataka">Karnataka</option>
+                <option value="kerala">Kerala</option>
+                <option value="ladakh">Ladakh</option>
+                <option value="madhya_pradesh">Madhya Pradesh</option>
+                <option value="maharashtra">Maharashtra</option>
+                <option value="manipur">Manipur</option>
+                <option value="meghalaya">Meghalaya</option>
+                <option value="mizoram">Mizoram</option>
+                <option value="nagaland">Nagaland</option>
+                <option value="odisha">Odisha</option>
+                <option value="puducherry">Puducherry</option>
+                <option value="punjab">Punjab</option>
+                <option value="rajasthan">Rajasthan</option>
+                <option value="sikkim">Sikkim</option>
+                <option value="tamil_nadu">Tamil Nadu</option>
+                <option value="telangana">Telangana</option>
+                <option value="tripura">Tripura</option>
+                <option value="uttar_pradesh">Uttar Pradesh</option>
+                <option value="uttarakhand">Uttarakhand</option>
+                <option value="west_bengal">West Bengal</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="month">Month (1-12)</label>
+                <input
+                  type="number"
+                  id="month"
+                  min="1"
+                  max="12"
+                  value="10"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="year">Year</label>
+                <input type="number" id="year" value="2025" required />
+              </div>
+              <div class="form-group">
+                <label for="lags">Number of Lags</label>
+                <input
+                  type="number"
+                  id="lags"
+                  min="1"
+                  max="7"
+                  value="3"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" class="btn">🔮 Predict Future Risk</button>
+          </form>
+
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing data...</p>
+          </div>
+
+          <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="card">
+          <h2>🤖 COVID Bot (Q&A)</h2>
+
+          <div
+            style="
+              background: #f5f5f5;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 15px;
+            "
+          >
+            Hello! I can provide info on <strong>causes</strong>,
+            <strong>prevention</strong>, and <strong>hospitals</strong>. Ask me
+            anything!
+          </div>
+
+          <div class="form-group">
+            <label for="botQuestion">Ask a Question</label>
+            <input
+              type="text"
+              id="botQuestion"
+              placeholder="e.g., How to prevent COVID?"
+            />
+          </div>
+
+          <button class="btn" id="botSubmit">💬 Get Answer</button>
+
+          <div id="botResponse"></div>
+
+          <div class="loading" id="botLoading">
+            <div class="spinner"></div>
+            <p>Thinking...</p>
+          </div>
+
+          <div class="error-message" id="botErrorMessage"></div>
+        </div>
+
+        <div class="graph-container" id="graphContainer" style="display: none">
+          <h2 id="graphTitle">COVID-19 Cases Trend</h2>
+          <canvas id="trendsChart"></canvas>
+          <div class="prediction-text" id="predictionText"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE_URL = "http://localhost:5000/api";
+      let chartInstance = null;
+
+      document
+        .getElementById("forecastForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const state = document.getElementById("state").value;
+          const month = document.getElementById("month").value;
+          const year = document.getElementById("year").value;
+          const nLags = document.getElementById("lags").value;
+
+          if (!state) {
+            showError("Please select a state", "errorMessage");
+            return;
+          }
+
+          await fetchPrediction(state, month, year, nLags);
+        });
+
+      async function fetchPrediction(state, month, year, nLags) {
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("errorMessage");
+        const graphContainer = document.getElementById("graphContainer");
+
+        loadingEl.classList.add("show");
+        errorEl.classList.remove("show");
+        graphContainer.style.display = "none";
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/predict`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              state: state,
+              month: parseInt(month),
+              year: parseInt(year),
+              n_lags: parseInt(nLags),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          displayGraph(data, state);
+          graphContainer.style.display = "block";
+        } catch (error) {
+          console.error("Error:", error);
+          showError(
+            "Failed to fetch prediction: " +
+              error.message +
+              ". Make sure backend is running on http://localhost:5000",
+            "errorMessage"
+          );
+        } finally {
+          loadingEl.classList.remove("show");
+        }
+      }
+
+      function displayPrediction(data, state) {
+        const predValue = data.pred || 0;
+        const prob = data.prob;
+
+        document.getElementById("predictionValue").textContent =
+          predValue.toLocaleString();
+
+        let details = `Predicted new cases for ${
+          document.getElementById("month").value
+        }/${document.getElementById("year").value}`;
+        if (prob !== null) {
+          details += ` (Confidence: ${(prob * 100).toFixed(1)}%)`;
+        }
+        document.getElementById("predictionDetails").textContent = details;
+
+        let riskLevel = "Low";
+        let riskClass = "risk-low";
+        if (predValue > 1000) {
+          riskLevel = "High";
+          riskClass = "risk-high";
+        } else if (predValue > 500) {
+          riskLevel = "Medium";
+          riskClass = "risk-medium";
+        }
+
+        document.getElementById(
+          "riskBadge"
+        ).innerHTML = `<div class="risk-badge ${riskClass}">Risk Level: ${riskLevel}</div>`;
+      }
+
+      function displayGraph(data, state) {
+        const stateName = state.replace("_", " ").toUpperCase();
+        document.getElementById(
+          "graphTitle"
+        ).textContent = `${stateName} — Confirmed & New Cases`;
+
+        const dates = generateLastDays(60);
+        const confirmedData = generateRandomCases(dates, 100, 50);
+        const newCasesData = generateRandomCases(dates, 20, 10);
+
+        const ctx = document.getElementById("trendsChart").getContext("2d");
+
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: dates,
+            datasets: [
+              {
+                label: "Confirmed",
+                data: confirmedData,
+                borderColor: "#1b7a7e",
+                backgroundColor: "rgba(27, 122, 126, 0.1)",
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+              },
+              {
+                label: "NewCases",
+                data: newCasesData,
+                borderColor: "#ff6b6b",
+                backgroundColor: "rgba(255, 107, 107, 0.1)",
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+                labels: {
+                  usePointStyle: true,
+                  padding: 15,
+                },
+              },
+              filler: {
+                propagate: true,
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Value",
+                },
+              },
+            },
+          },
+        });
+
+        const predValue = data.pred || 0;
+        const prob = data.prob;
+        let predictionMsg = "";
+
+        if (predValue > 500) {
+          predictionMsg = `<strong>Next-day prediction: Significant increase expected</strong><br>Probability: ${(
+            prob * 100
+          ).toFixed(2)}%`;
+        } else if (predValue > 100) {
+          predictionMsg = `<strong>Next-day prediction: Moderate increase expected</strong><br>Probability: ${(
+            prob * 100
+          ).toFixed(2)}%`;
+        } else {
+          predictionMsg = `<strong>Next-day prediction: Negative (no significant increase)</strong><br>Probability: ${(
+            prob * 100
+          ).toFixed(2)}%`;
+        }
+
+        document.getElementById("predictionText").innerHTML = predictionMsg;
+      }
+
+      function generateLastDays(count) {
+        const dates = [];
+        const today = new Date();
+        for (let i = count; i >= 0; i--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          dates.push(
+            date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+          );
+        }
+        return dates;
+      }
+
+      function generateRandomCases(dates, baseValue, variance) {
+        return dates.map((_, i) => {
+          const trend = i * 2;
+          const random = (Math.random() - 0.5) * variance * 2;
+          return Math.max(0, baseValue + trend + random);
+        });
+      }
+
+      document
+        .getElementById("botSubmit")
+        .addEventListener("click", async () => {
+          const question = document.getElementById("botQuestion").value;
+          const state = document.getElementById("state").value;
+
+          if (!question.trim()) {
+            showError("Please enter a question", "botErrorMessage");
+            return;
+          }
+
+          if (!state) {
+            showError("Please select a state first", "botErrorMessage");
+            return;
+          }
+
+          await fetchBotAnswer(state, question);
+        });
+
+      async function fetchBotAnswer(state, question) {
+        const loadingEl = document.getElementById("botLoading");
+        const responseEl = document.getElementById("botResponse");
+        const errorEl = document.getElementById("botErrorMessage");
+
+        loadingEl.classList.add("show");
+        responseEl.innerHTML = "";
+        errorEl.classList.remove("show");
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/bot`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              state: state,
+              question: question,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          displayBotAnswer(data);
+        } catch (error) {
+          console.error("Error:", error);
+          showError("Failed to fetch bot answer.", "botErrorMessage");
+        } finally {
+          loadingEl.classList.remove("show");
+        }
+      }
+
+      function displayBotAnswer(data) {
+        const responseEl = document.getElementById("botResponse");
+        const answer = data.answer || "No answer available";
+
+        responseEl.innerHTML = `
+                <div style="margin-top: 15px; background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px; border-radius: 8px; color: #333; line-height: 1.6;">
+                    ${answer}
+                </div>
+            `;
+      }
+
+      function showError(message, elementId) {
+        const errorEl = document.getElementById(elementId);
+        errorEl.textContent = message;
+        errorEl.classList.add("show");
+      }
+
+      document
+        .getElementById("botQuestion")
+        .addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            document.getElementById("botSubmit").click();
+          }
+        });
+    </script>
+  </body>
+</html>
